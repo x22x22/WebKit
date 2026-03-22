@@ -25,8 +25,12 @@
 
 #pragma once
 
-#include "DFGAbstractHeap.h"
 #include "DOMJITHeapRange.h"
+#include <wtf/Platform.h>
+
+#if ENABLE(DFG_JIT)
+#include "DFGAbstractHeap.h"
+#endif
 
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 
@@ -44,6 +48,7 @@ struct Effect {
         return { readRange, HeapRange::none() };
     }
 
+#if ENABLE(DFG_JIT)
     constexpr static Effect forReadKinds(DFG::AbstractHeapKind read1 = DFG::InvalidAbstractHeap, DFG::AbstractHeapKind read2 = DFG::InvalidAbstractHeap, DFG::AbstractHeapKind read3 = DFG::InvalidAbstractHeap, DFG::AbstractHeapKind read4 = DFG::InvalidAbstractHeap)
     {
         return { HeapRange::none(), HeapRange::none(), HeapRange::none(), { read1, read2, read3, read4 } };
@@ -58,6 +63,7 @@ struct Effect {
     {
         return { HeapRange::none(), HeapRange::none(), HeapRange::none(), { reads[0], reads[1], reads[2], reads[3] }, { writes[0], writes[1], writes[2], writes[3] } };
     }
+#endif
 
     constexpr static Effect forReadWrite(HeapRange readRange, HeapRange writeRange)
     {
@@ -86,18 +92,24 @@ struct Effect {
 
     constexpr bool isTop() const
     {
+#if ENABLE(DFG_JIT)
         return domWrites == HeapRange::top() ||
             writes[0] == DFG::Heap ||
             writes[1] == DFG::Heap ||
             writes[2] == DFG::Heap ||
             writes[3] == DFG::Heap;
+#else
+        return domWrites == HeapRange::top();
+#endif
     }
 
     HeapRange domReads { HeapRange::top() };
     HeapRange domWrites { HeapRange::top() };
     HeapRange def { HeapRange::top() };
+#if ENABLE(DFG_JIT)
     DFG::AbstractHeapKind reads[4] { DFG::InvalidAbstractHeap };
     DFG::AbstractHeapKind writes[4] { DFG::InvalidAbstractHeap };
+#endif
 };
 
 }

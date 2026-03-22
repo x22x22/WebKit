@@ -31,6 +31,7 @@
 #include "JSCInlines.h"
 #include "JSWebAssemblyInstance.h"
 #include "Options.h"
+#include "ExecutableAllocator.h"
 #include "WasmFaultSignalHandler.h"
 #include "WeakGCSetInlines.h"
 #include <wtf/CheckedArithmetic.h>

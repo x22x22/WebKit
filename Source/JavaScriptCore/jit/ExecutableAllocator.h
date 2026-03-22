@@ -316,6 +316,78 @@ ALWAYS_INLINE void* performJITMemcpy(void *dst, const void *src, size_t n)
     return memcpyAtomicIfPossible(dst, src, n);
 }
 
+template<>
+ALWAYS_INLINE void* performJITMemcpy<jitMemcpyRepatch>(void* dst, const void* src, size_t n)
+{
+    jitMemcpyChecks(dst, src, n);
+    if (isJITPC(dst)) {
+#if ENABLE(MPROTECT_RX_TO_RWX)
+        auto ret = performJITMemcpyWithMProtect(dst, src, n);
+        jitMemcpyCheckForZeros(dst, src, n);
+        return ret;
+#endif
+
+        if (g_jscConfig.useFastJITPermissions) {
+            threadSelfRestrict<MemoryRestriction::kRwxToRw>();
+            memcpyAtomicIfPossible(dst, src, n);
+            threadSelfRestrict<MemoryRestriction::kRwxToRx>();
+            jitMemcpyCheckForZeros(dst, src, n);
+            return dst;
+        }
+
+#if ENABLE(SEPARATED_WX_HEAP)
+        if (g_jscConfig.jitWriteSeparateHeaps) {
+            off_t offset = (off_t)((uintptr_t)dst - startOfFixedExecutableMemoryPool<uintptr_t>());
+            retagCodePtr<JITThunkPtrTag, CFunctionPtrTag>(g_jscConfig.jitWriteSeparateHeaps)(offset, src, n);
+            RELEASE_ASSERT(!Gigacage::contains(src));
+            jitMemcpyCheckForZeros(dst, src, n);
+            return dst;
+        }
+#endif
+        memcpyAtomicIfPossible(dst, src, n);
+        jitMemcpyCheckForZeros(dst, src, n);
+        return dst;
+    }
+
+    return memcpyAtomicIfPossible(dst, src, n);
+}
+
+template<>
+ALWAYS_INLINE void* performJITMemcpy<jitMemcpyRepatchAtomic>(void* dst, const void* src, size_t n)
+{
+    jitMemcpyChecks(dst, src, n);
+    if (isJITPC(dst)) {
+#if ENABLE(MPROTECT_RX_TO_RWX)
+        auto ret = performJITMemcpyWithMProtect(dst, src, n);
+        jitMemcpyCheckForZeros(dst, src, n);
+        return ret;
+#endif
+
+        if (g_jscConfig.useFastJITPermissions) {
+            threadSelfRestrict<MemoryRestriction::kRwxToRw>();
+            memcpyAtomic(dst, src, n);
+            threadSelfRestrict<MemoryRestriction::kRwxToRx>();
+            jitMemcpyCheckForZeros(dst, src, n);
+            return dst;
+        }
+
+#if ENABLE(SEPARATED_WX_HEAP)
+        if (g_jscConfig.jitWriteSeparateHeaps) {
+            off_t offset = (off_t)((uintptr_t)dst - startOfFixedExecutableMemoryPool<uintptr_t>());
+            retagCodePtr<JITThunkPtrTag, CFunctionPtrTag>(g_jscConfig.jitWriteSeparateHeaps)(offset, src, n);
+            RELEASE_ASSERT(!Gigacage::contains(src));
+            jitMemcpyCheckForZeros(dst, src, n);
+            return dst;
+        }
+#endif
+        memcpyAtomic(dst, src, n);
+        jitMemcpyCheckForZeros(dst, src, n);
+        return dst;
+    }
+
+    return memcpyAtomic(dst, src, n);
+}
+
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
 
 class ExecutableAllocator : private ExecutableAllocatorBase {

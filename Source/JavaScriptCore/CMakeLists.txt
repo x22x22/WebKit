@@ -56,6 +56,10 @@ if(USE_CAPSTONE)
     list(APPEND JavaScriptCore_PRIVATE_INCLUDE_DIRECTORIES "${THIRDPARTY_DIR}/capstone/Source/include")
 endif()
 
+if (USE_MIMALLOC)
+    list(APPEND JavaScriptCore_PRIVATE_INCLUDE_DIRECTORIES "${JAVASCRIPTCORE_DIR}/../bmalloc/mimalloc/mimalloc/include")
+endif ()
+
 set(JavaScriptCore_OBJECT_LUT_SOURCES
     runtime/ArrayConstructor.cpp
     runtime/AsyncFromSyncIteratorPrototype.cpp

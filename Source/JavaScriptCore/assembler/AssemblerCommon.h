@@ -727,6 +727,12 @@ static ALWAYS_INLINE void* memcpyAtomicIfPossible(void* dst, const void* src, si
 template<RepatchingInfo repatch>
 void* performJITMemcpy(void* dst, const void* src, size_t n);
 
+template<>
+void* performJITMemcpy<jitMemcpyRepatch>(void* dst, const void* src, size_t n);
+
+template<>
+void* performJITMemcpy<jitMemcpyRepatchAtomic>(void* dst, const void* src, size_t n);
+
 template<RepatchingInfo repatch>
 ALWAYS_INLINE void* machineCodeCopy(void* dst, const void* src, size_t n)
 {
@@ -737,12 +743,16 @@ ALWAYS_INLINE void* machineCodeCopy(void* dst, const void* src, size_t n)
             return memcpyAtomicIfPossible(dst, src, n);
         return memcpyTearing(dst, src, n);
     }
+#if !ENABLE(JIT)
+    if constexpr ((*repatch).contains(RepatchingFlag::Atomic))
+        return memcpyAtomic(dst, src, n);
+    return memcpyAtomicIfPossible(dst, src, n);
+#endif
     if constexpr ((*repatch).contains(RepatchingFlag::Memcpy) && (*repatch).contains(RepatchingFlag::Atomic))
         return memcpyAtomic(dst, src, n);
     else if constexpr ((*repatch).contains(RepatchingFlag::Memcpy))
         return memcpyAtomicIfPossible(dst, src, n);
-    else
-        return performJITMemcpy<repatch>(dst, src, n);
+    return performJITMemcpy<repatch>(dst, src, n);
 }
 
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
