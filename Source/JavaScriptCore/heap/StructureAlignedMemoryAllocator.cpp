@@ -127,6 +127,9 @@ public:
 
         // Don't use the first page because zero is used as the empty StructureID and the first allocation will conflict.
         m_useSystemHeap = !bmalloc::api::isEnabled();
+#if USE(MIMALLOC) && OS(LINUX) && CPU(ARM64)
+        m_useSystemHeap = true;
+#endif
 #if USE(LIBPAS)
         if (!m_useSystemHeap) [[likely]] {
 #if OS(WINDOWS) || PLATFORM(PLAYSTATION)
@@ -139,9 +142,14 @@ public:
         }
         m_usedBlocks.set(0);
 #elif USE(MIMALLOC)
+        if (m_useSystemHeap) {
+            m_usedBlocks.set(0);
+            return;
+        }
         void* memory = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(g_jscConfig.startOfStructureHeap) + MarkedBlock::blockSize);
         size_t size = g_jscConfig.sizeOfStructureHeap - MarkedBlock::blockSize;
-        RELEASE_ASSERT(mi_manage_os_memory_ex(memory, size, false, false, false, -1, true, &structureArena));
+        bool ok = mi_manage_os_memory_ex(memory, size, false, false, false, -1, true, &structureArena);
+        RELEASE_ASSERT(ok);
         structureHeap = mi_heap_new_in_arena(structureArena);
 #else
         m_usedBlocks.set(0);
